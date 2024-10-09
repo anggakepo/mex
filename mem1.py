@@ -70,18 +70,32 @@ def fetch(account_line):
         raw_data = lines[account_line - 1].strip()
 
     tg_web_data = unquote(unquote(raw_data))
+    user_data = None
+    query_id = None
+    auth_date = None
+    hash_ = None
 
-    # Check if 'query_id' exists in the URL
+    # Extract user data and other fields based on the format
     if 'query_id=' in tg_web_data:
+        # Case where query_id is present
         query_id = tg_web_data.split('query_id=', maxsplit=1)[1].split('&user', maxsplit=1)[0]
+        user_data = tg_web_data.split('user=', maxsplit=1)[1].split('&auth_date', maxsplit=1)[0]
+        auth_date = tg_web_data.split('auth_date=', maxsplit=1)[1].split('&hash', maxsplit=1)[0]
+        hash_ = tg_web_data.split('hash=', maxsplit=1)[1].split('&', maxsplit=1)[0]
+    elif 'user=' in tg_web_data:
+        # Case where query_id is missing, but user data is present
+        user_data = tg_web_data.split('user=', maxsplit=1)[1].split('&auth_date', maxsplit=1)[0]
+        # Attempt to find auth_date and hash in a different way
+        auth_date = tg_web_data.split('auth_date=', maxsplit=1)[1].split('&hash', maxsplit=1)[0]
+        hash_ = tg_web_data.split('hash=', maxsplit=1)[1].split('&', maxsplit=1)[0]
+        # Here we can't extract query_id, you may want to handle this case
+        print("❌ 'query_id' tidak ditemukan, tetapi 'user' ditemukan.")
+        return None
     else:
-        print("❌ 'query_id' tidak ditemukan di data. Cek kembali input.")
+        print("❌ Format data tidak valid. Pastikan format yang diharapkan.")
         return None
 
-    user_data = tg_web_data.split('user=', maxsplit=1)[1].split('&auth_date', maxsplit=1)[0]
-    auth_date = tg_web_data.split('auth_date=', maxsplit=1)[1].split('&hash', maxsplit=1)[0]
-    hash_ = tg_web_data.split('hash=', maxsplit=1)[1].split('&', maxsplit=1)[0]
-
+    # Load user data into a dictionary
     user_data_dict = json.loads(unquote(user_data))
 
     url = 'api-gw-tg.memefi.club'
@@ -109,6 +123,8 @@ def fetch(account_line):
         },
         "query": "mutation MutationTelegramUserLogin($webAppData: TelegramWebAppDataInput!) {\n  telegramUserLogin(webAppData: $webAppData) {\n    access_token\n    __typename\n  }\n}"
     }
+
+    # Proceed with making the request using the constructed data...
 
     conn = http.client.HTTPSConnection(url)
     payload = json.dumps(data)
